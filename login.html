@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login — Fake Review Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eaf4fb;
+    --surface:      #ffffff;
+    --border:       #c8e2f5;
+    --accent:       #2196f3;
+    --accent-dark:  #1565c0;
+    --accent-light: #e3f2fd;
+    --text:         #1a2a3a;
+    --muted:        #6e8fa8;
+    --red:          #e53935;
+    --green:        #43a047;
+  }
+
+  /* ── PAGE ── */
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Poppins', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;   /* allows scrolling on small screens */
+    position: relative;
+    overflow-y: auto;     /* FIX: page can scroll vertically */
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, #bbdefb 0%, transparent 70%);
+    top: -150px; left: -150px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, #e3f2fd 0%, transparent 70%);
+    bottom: -100px; right: -100px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── CARD — square shape, fixed size ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;        /* less rounded = more square look */
+    padding: 36px 36px 32px;
+    width: 480px;               /* wider */
+    min-height: 480px;          /* keeps it square-ish */
+    box-shadow: 0 8px 40px rgba(33,150,243,0.10), 0 2px 8px rgba(0,0,0,0.06);
+    animation: slideUp 0.5s ease both;
+    z-index: 1;
+    position: relative;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── TITLE (no subtitle) ── */
+  .page-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 20px;   /* space directly to tabs, no subtitle */
+  }
+  .page-title span { color: var(--accent); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--accent-light);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 22px;
+  }
+  .tab {
+    flex: 1; padding: 8px;
+    border: none; background: transparent;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--muted); border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: 0 2px 8px rgba(33,150,243,0.15);
+  }
+
+  /* ── PANELS ── */
+  .panel { display: none; animation: fadeIn 0.3s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+  /* ── FIELDS ── */
+  .field { margin-bottom: 12px; }
+  label {
+    display: block;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  input[type=text],
+  input[type=password],
+  input[type=email] {
+    width: 100%;
+    background: var(--accent-light);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 13px;
+    color: var(--text);
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  input:focus {
+    border-color: var(--accent);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(33,150,243,0.12);
+  }
+  input::placeholder { color: #b0c8da; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── FORGOT LINK ── */
+  .forgot-row { text-align: right; margin-top: -4px; margin-bottom: 12px; }
+  .forgot-link {
+    font-size: 11px; color: var(--accent);
+    cursor: pointer; font-weight: 600;
+  }
+  .forgot-link:hover { text-decoration: underline; }
+
+  /* ── BUTTON ── */
+  .btn {
+    width: 100%; padding: 12px;
+    background: linear-gradient(135deg, #2196f3, #1565c0);
+    color: #fff; border: none; border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(33,150,243,0.3);
+  }
+  .btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(33,150,243,0.4); }
+  .btn:active { transform: translateY(0); }
+
+  /* ── MESSAGES ── */
+  .msg {
+    font-size: 12px; margin-top: 10px;
+    padding: 9px 13px; border-radius: 7px;
+    display: none; font-weight: 500;
+  }
+  .msg.error   { background: #fdecea; color: var(--red);   border: 1px solid #ffcdd2; }
+  .msg.success { background: #e8f5e9; color: var(--green); border: 1px solid #c8e6c9; }
+
+  /* ── PASSWORD STRENGTH ── */
+  .strength-bar {
+    height: 4px; border-radius: 2px;
+    background: var(--border); margin-top: 5px; overflow: hidden;
+  }
+  .strength-fill {
+    height: 100%; width: 0; border-radius: 2px;
+    transition: width 0.3s, background 0.3s;
+  }
+  .strength-label { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+  /* ── TERMS ── */
+  .check-row {
+    display: flex; align-items: flex-start;
+    gap: 8px; margin-bottom: 12px;
+  }
+  .check-row input[type=checkbox] {
+    width: 14px; height: 14px;
+    margin-top: 3px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .check-row span { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .check-row a { color: var(--accent); font-weight: 600; cursor: pointer; }
+
+  /* ── BACK LINK ── */
+  .back-link {
+    font-size: 12px; color: var(--accent);
+    cursor: pointer; font-weight: 600;
+    display: inline-block; margin-bottom: 12px;
+  }
+  .back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Title only — no subtitle -->
+  <div class="page-title">Fake Review <span>Detection</span></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tab-login"  onclick="showTab('login')">Login</button>
+    <button class="tab"        id="tab-signup" onclick="showTab('signup')">Sign Up</button>
+  </div>
+
+  <!-- ══ LOGIN PANEL ══ -->
+  <div class="panel active" id="panel-login">
+    <h2>Welcome Back 👋</h2>
+    <p class="sub">Sign in to your account</p>
+
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="Enter your username"/>
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter your password"/>
+    </div>
+
+    <div class="forgot-row">
+      <span class="forgot-link" onclick="showForgot()">Forgot Password?</span>
+    </div>
+
+    <button class="btn" onclick="doLogin()">Sign In →</button>
+    <div class="msg error" id="login-err">⚠ Wrong username or password!</div>
+  </div>
+
+  <!-- ══ SIGN UP PANEL ══ -->
+  <div class="panel" id="panel-signup">
+    <h2>Create Account 🎉</h2>
+    <p class="sub">Fill in your details to register</p>
+
+    <div class="row2">
+      <div class="field">
+        <label>First Name</label>
+        <input type="text" id="su-fname" placeholder="John"/>
+      </div>
+      <div class="field">
+        <label>Last Name</label>
+        <input type="text" id="su-lname" placeholder="Doe"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="su-email" placeholder="john@example.com"/>
+    </div>
+
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="su-user" placeholder="Choose a username"/>
+    </div>
+
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="su-pass" placeholder="Create a strong password"
+             oninput="checkStrength(this.value)"/>
+      <div class="strength-bar">
+        <div class="strength-fill" id="str-fill"></div>
+      </div>
+      <div class="strength-label" id="str-label">Enter a password</div>
+    </div>
+
+    <div class="field">
+      <label>Confirm Password</label>
+      <input type="password" id="su-pass2" placeholder="Re-enter your password"/>
+    </div>
+
+    <div class="check-row">
+      <input type="checkbox" id="su-terms"/>
+      <span>I agree to the <a>Terms of Service</a> and <a>Privacy Policy</a></span>
+    </div>
+
+    <button class="btn" onclick="doSignup()">Create Account →</button>
+    <div class="msg error"   id="signup-err"></div>
+    <div class="msg success" id="signup-ok">✅ Account created! You can now log in.</div>
+  </div>
+
+  <!-- ══ FORGOT PASSWORD PANEL ══ -->
+  <div class="panel" id="panel-forgot">
+    <span class="back-link" onclick="backToLogin()">← Back to Login</span>
+    <h2>Reset Password 🔑</h2>
+    <p class="sub">Enter your email to receive a reset link</p>
+
+    <div class="field">
+      <label>Registered Email</label>
+      <input type="email" id="fp-email" placeholder="Enter your email address"/>
+    </div>
+
+    <button class="btn" onclick="doForgot()">Send Reset Link →</button>
+    <div class="msg error"   id="fp-err">⚠ Please enter a valid email address.</div>
+    <div class="msg success" id="fp-ok"></div>
+  </div>
+
+</div>
+
+<script>
+  function show(el, msg) { if (msg) el.textContent = msg; el.style.display = 'block'; }
+  function hideAll() { document.querySelectorAll('.msg').forEach(m => m.style.display = 'none'); }
+
+  function showTab(name) {
+    ['login','signup'].forEach(t => {
+      document.getElementById('panel-' + t).classList.remove('active');
+      document.getElementById('tab-'   + t).classList.remove('active');
+    });
+    document.getElementById('panel-' + name).classList.add('active');
+    document.getElementById('tab-'   + name).classList.add('active');
+    hideAll();
+  }
+
+  function showForgot() {
+    ['login','signup'].forEach(t => {
+      document.getElementById('panel-' + t).classList.remove('active');
+      document.getElementById('tab-'   + t).classList.remove('active');
+    });
+    document.getElementById('panel-forgot').classList.add('active');
+    hideAll();
+  }
+
+  function backToLogin() { showTab('login'); }
+
+  function doLogin() {
+    const u   = document.getElementById('login-user').value.trim();
+    const p   = document.getElementById('login-pass').value.trim();
+    const err = document.getElementById('login-err');
+    err.style.display = 'none';
+
+    if (u === '') {
+      show(err, '⚠ Please enter your username!'); return;
+    }
+    if (p === '') {
+      show(err, '⚠ Please enter your password!'); return;
+    }
+    if (p.length < 4) {
+      show(err, '⚠ Password must be at least 4 characters!'); return;
+    }
+
+    // Accept any username and password
+    localStorage.setItem('rg_loggedIn', u);
+    localStorage.setItem('rg_username', u);
+    window.location.href = 'dashboard.html';
+  }
+
+  function doSignup() {
+    const fname = document.getElementById('su-fname').value.trim();
+    const lname = document.getElementById('su-lname').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const user  = document.getElementById('su-user').value.trim();
+    const pass  = document.getElementById('su-pass').value;
+    const pass2 = document.getElementById('su-pass2').value;
+    const terms = document.getElementById('su-terms').checked;
+    const errEl = document.getElementById('signup-err');
+    const okEl  = document.getElementById('signup-ok');
+    errEl.style.display = 'none';
+    okEl.style.display  = 'none';
+
+    if (!fname || !lname)               { show(errEl, '⚠ Please enter your full name.');            return; }
+    if (!email || !email.includes('@')) { show(errEl, '⚠ Enter a valid email address.');            return; }
+    if (user.length < 3)                { show(errEl, '⚠ Username must be at least 3 characters.'); return; }
+    if (pass.length < 6)                { show(errEl, '⚠ Password must be at least 6 characters.'); return; }
+    if (pass !== pass2)                 { show(errEl, '⚠ Passwords do not match!');                 return; }
+    if (!terms)                         { show(errEl, '⚠ Please accept the Terms of Service.');     return; }
+
+    ['su-fname','su-lname','su-email','su-user','su-pass','su-pass2'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('su-terms').checked     = false;
+    document.getElementById('str-fill').style.width = '0';
+    document.getElementById('str-label').textContent = 'Enter a password';
+    document.getElementById('str-label').style.color = '#6e8fa8';
+
+    okEl.style.display = 'block';
+    setTimeout(() => { okEl.style.display = 'none'; showTab('login'); }, 2000);
+  }
+
+  function doForgot() {
+    const email = document.getElementById('fp-email').value.trim();
+    const err   = document.getElementById('fp-err');
+    const ok    = document.getElementById('fp-ok');
+    err.style.display = 'none';
+    ok.style.display  = 'none';
+    if (!email || !email.includes('@')) { show(err, '⚠ Please enter a valid email address.'); return; }
+    show(ok, '✅ Reset link sent to ' + email + '! Check your inbox.');
+    document.getElementById('fp-email').value = '';
+  }
+
+  function checkStrength(val) {
+    const fill  = document.getElementById('str-fill');
+    const label = document.getElementById('str-label');
+    if (!val) { fill.style.width = '0'; label.textContent = 'Enter a password'; label.style.color = '#6e8fa8'; return; }
+    let score = 0;
+    if (val.length >= 6)          score++;
+    if (val.length >= 10)         score++;
+    const levels = [
+      { w:'20%',  color:'#e53935', text:'Very Weak'   },
+      { w:'40%',  color:'#ff7043', text:'Weak'        },
+      { w:'60%',  color:'#ffa726', text:'Fair'        },
+      { w:'80%',  color:'#66bb6a', text:'Strong'      },
+      { w:'100%', color:'#43a047', text:'Very Strong' },
+    ];
+    const lvl             = levels[Math.min(score, 4)];
+    fill.style.width      = lvl.w;
+    fill.style.background = lvl.color;
+    label.textContent     = 'Password Strength: ' + lvl.text;
+    label.style.color     = lvl.color;
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const active = document.querySelector('.panel.active').id;
+    if (active === 'panel-login')  doLogin();
+    if (active === 'panel-signup') doSignup();
+    if (active === 'panel-forgot') doForgot();
+  });
+</script>
+</body>
+</html>

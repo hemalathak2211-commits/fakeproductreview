@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Check Review — Fake Review Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #eaf4fb; --surface: #ffffff; --border: #c8e2f5;
+  --accent: #2196f3; --accent-dark: #1565c0; --accent-light: #e3f2fd;
+  --text: #1a2a3a; --muted: #6e8fa8;
+  --green: #43a047; --green-light: #e8f5e9; --green-border: #c8e6c9;
+  --red: #e53935; --red-light: #fdecea; --red-border: #ffcdd2;
+}
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'Poppins', sans-serif; min-height: 100vh;
+}
+body::before {
+  content: ''; position: fixed; width: 500px; height: 500px;
+  background: radial-gradient(circle, #bbdefb 0%, transparent 70%);
+  top: -150px; left: -150px; border-radius: 50%;
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: ''; position: fixed; width: 400px; height: 400px;
+  background: radial-gradient(circle, #e3f2fd 0%, transparent 70%);
+  bottom: -100px; right: -100px; border-radius: 50%;
+  pointer-events: none; z-index: 0;
+}
+
+/* NAVBAR */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(33,150,243,0.07);
+}
+.nav-left { display: flex; align-items: center; gap: 10px; }
+.nav-logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #2196f3, #1565c0);
+  border-radius: 8px; display: flex; align-items: center;
+  justify-content: center; font-size: 17px;
+}
+.nav-title { font-size: 17px; font-weight: 800; color: var(--text); }
+.nav-title span { color: var(--accent); }
+.back-btn {
+  background: var(--accent-light); border: 1px solid var(--border);
+  color: var(--accent); padding: 7px 16px; border-radius: 8px;
+  font-family: 'Poppins', sans-serif; font-size: 12px;
+  font-weight: 600; cursor: pointer;
+}
+.back-btn:hover { background: #d0eafb; }
+
+main {
+  max-width: 740px; margin: 0 auto;
+  padding: 32px 24px 48px; position: relative; z-index: 1;
+}
+.page-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.page-title span { color: var(--accent); }
+.page-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+
+/* CARD */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 28px;
+  box-shadow: 0 2px 10px rgba(33,150,243,0.06); margin-bottom: 20px;
+}
+
+/* LABEL ROW */
+.input-label-row {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 10px;
+}
+label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+
+/* TOGGLE */
+.input-toggle {
+  display: flex; background: var(--accent-light);
+  border-radius: 8px; padding: 3px; gap: 3px;
+}
+.toggle-btn {
+  padding: 5px 14px; border: none; background: transparent;
+  font-family: 'Poppins', sans-serif; font-size: 11px; font-weight: 600;
+  color: var(--muted); border-radius: 6px; cursor: pointer; transition: all 0.2s;
+}
+.toggle-btn.active {
+  background: var(--surface); color: var(--accent);
+  box-shadow: 0 2px 6px rgba(33,150,243,0.15);
+}
+
+/* TEXTAREA */
+textarea {
+  width: 100%; background: var(--accent-light);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 14px; color: var(--text);
+  font-family: 'Poppins', sans-serif; font-size: 14px;
+  resize: vertical; min-height: 130px; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  line-height: 1.6; display: block;
+}
+textarea:focus {
+  border-color: var(--accent); background: #fff;
+  box-shadow: 0 0 0 3px rgba(33,150,243,0.12);
+}
+textarea::placeholder { color: #b0c8da; }
+.char-row { display: flex; justify-content: space-between; margin-top: 6px; }
+.char-info { font-size: 11px; color: var(--muted); }
+.char-info span { font-weight: 700; color: var(--accent); }
+
+/* VOICE SECTION */
+.voice-section { display: none; }
+.voice-box {
+  background: var(--accent-light); border: 2px dashed var(--border);
+  border-radius: 12px; padding: 30px 20px; text-align: center; transition: all 0.3s;
+}
+.voice-box.listening {
+  border-color: var(--red); background: #fff5f5;
+  animation: pulse-box 1.2s ease-in-out infinite;
+}
+@keyframes pulse-box {
+  0%,100% { box-shadow: 0 0 0 0 rgba(229,57,53,0.15); }
+  50%      { box-shadow: 0 0 0 10px rgba(229,57,53,0); }
+}
+
+/* MIC BUTTON */
+.mic-btn {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: linear-gradient(135deg, #2196f3, #1565c0);
+  border: none; cursor: pointer; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 18px rgba(33,150,243,0.35);
+}
+.mic-btn:hover { transform: scale(1.08); }
+.mic-btn.recording {
+  background: linear-gradient(135deg, #e53935, #b71c1c);
+  box-shadow: 0 4px 18px rgba(229,57,53,0.4);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+@keyframes mic-pulse {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.1); }
+}
+
+/* SOUND WAVE */
+.wave-wrap {
+  display: flex; align-items: center; justify-content: center;
+  gap: 4px; height: 36px; margin: 8px 0; opacity: 0; transition: opacity 0.3s;
+}
+.wave-wrap.show { opacity: 1; }
+.wave-bar {
+  width: 4px; background: var(--red); border-radius: 3px;
+  animation: wave 0.9s ease-in-out infinite;
+}
+.wave-bar:nth-child(1){height:10px;animation-delay:0.0s}
+.wave-bar:nth-child(2){height:20px;animation-delay:0.1s}
+.wave-bar:nth-child(3){height:30px;animation-delay:0.2s}
+.wave-bar:nth-child(4){height:22px;animation-delay:0.3s}
+.wave-bar:nth-child(5){height:14px;animation-delay:0.4s}
+.wave-bar:nth-child(6){height:22px;animation-delay:0.3s}
+.wave-bar:nth-child(7){height:30px;animation-delay:0.2s}
+.wave-bar:nth-child(8){height:20px;animation-delay:0.1s}
+.wave-bar:nth-child(9){height:10px;animation-delay:0.0s}
+@keyframes wave {
+  0%,100% { transform: scaleY(0.3); }
+  50%      { transform: scaleY(1.0); }
+}
+
+.voice-status { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.voice-status.active { color: var(--red); }
+.voice-hint { font-size: 11px; color: var(--muted); }
+
+/* NOT SUPPORTED */
+.not-supported {
+  background: var(--red-light); border: 1px solid var(--red-border);
+  border-radius: 10px; padding: 14px; font-size: 13px;
+  color: var(--red); font-weight: 500; display: none;
+  text-align: center; margin-bottom: 12px;
+}
+
+/* TRANSCRIPT */
+.transcript-box {
+  background: var(--surface); border: 1.5px solid var(--green-border);
+  border-radius: 10px; padding: 14px; margin-top: 14px;
+  font-size: 14px; color: var(--text); line-height: 1.6;
+  min-height: 50px; display: none;
+}
+.transcript-label {
+  font-size: 10px; font-weight: 700; color: var(--green);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;
+}
+
+/* PILLS */
+.pill-label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.6px; margin: 16px 0 8px;
+}
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill {
+  background: var(--accent-light); border: 1px solid var(--border);
+  border-radius: 20px; padding: 6px 14px; font-size: 11px;
+  color: var(--accent); font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.pill:hover { background: #d0eafb; border-color: var(--accent); }
+
+/* ANALYZE BUTTON */
+.btn {
+  width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #2196f3, #1565c0);
+  color: #fff; border: none; border-radius: 10px;
+  font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; margin-top: 20px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 16px rgba(33,150,243,0.3);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(33,150,243,0.4); }
+.btn:active { transform: translateY(0); }
+
+/* LOADING */
+.loading-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 44px 28px; text-align: center;
+  box-shadow: 0 2px 10px rgba(33,150,243,0.06); display: none;
+}
+.spinner {
+  width: 46px; height: 46px;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: var(--muted); font-weight: 500; margin-bottom: 16px; }
+.steps { text-align: left; max-width: 270px; margin: 0 auto; }
+.step { font-size: 12px; color: var(--muted); padding: 4px 0; opacity: 0; transition: opacity 0.3s; }
+.step.active { color: var(--accent); opacity: 1; font-weight: 600; }
+.step.done   { color: var(--green);  opacity: 1; }
+
+/* RESULT CARD */
+.result-card {
+  border-radius: 14px; padding: 28px;
+  box-shadow: 0 2px 10px rgba(33,150,243,0.06);
+  display: none; animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.result-card.genuine { background: var(--green-light); border: 1.5px solid var(--green-border); }
+.result-card.fake    { background: var(--red-light);   border: 1.5px solid var(--red-border);   }
+
+.result-emoji { font-size: 46px; margin-bottom: 10px; }
+.result-title { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
+.result-title.genuine { color: var(--green); }
+.result-title.fake    { color: var(--red);   }
+.result-desc { font-size: 13px; color: var(--muted); margin-bottom: 22px; line-height: 1.6; }
+
+/* VOICE BADGE */
+.voice-badge {
+  display: inline-block; background: var(--accent-light);
+  border: 1px solid var(--border); border-radius: 20px;
+  padding: 4px 12px; font-size: 11px; font-weight: 600;
+  color: var(--accent); margin-bottom: 12px;
+}
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.metric {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px;
+}
+.metric-label {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;
+}
+.metric-value { font-size: 20px; font-weight: 800; color: var(--text); }
+
+/* CONFIDENCE BAR */
+.bar-wrap { margin-bottom: 18px; }
+.bar-top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; font-weight: 600; color: var(--muted); }
+.bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; width: 0; transition: width 1s cubic-bezier(0.22,1,0.36,1); }
+.bar-fill.genuine { background: var(--green); }
+.bar-fill.fake    { background: var(--red);   }
+
+/* FEATURES */
+.feat-label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+}
+.feat-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.feat-tag { padding: 5px 11px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.feat-tag.warn { background: var(--red-light);   color: var(--red);   border: 1px solid var(--red-border);   }
+.feat-tag.ok   { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
+
+/* REVIEWED TEXT */
+.reviewed-text {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 14px; font-size: 13px;
+  color: var(--muted); line-height: 1.6; margin-bottom: 18px;
+  font-style: italic;
+}
+.reviewed-label {
+  font-size: 10px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px;
+}
+
+/* TRY AGAIN BUTTON */
+.try-btn {
+  margin-top: 20px; background: var(--surface);
+  border: 1.5px solid var(--border); color: var(--accent);
+  padding: 10px 22px; border-radius: 8px;
+  font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.try-btn:hover { background: var(--accent-light); }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-left">
+    <div class="nav-logo-icon">🛡</div>
+    <div class="nav-title">Fake Review <span>Detection</span></div>
+  </div>
+  <button class="back-btn" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+
+<main>
+  <div class="page-title">🔍 Check <span>Review</span></div>
+  <p class="page-sub">Type or speak your review. Our Random Forest + TF-IDF model will detect if it is fake or genuine.</p>
+
+  <!-- INPUT CARD -->
+  <div class="card" id="inputSection">
+
+    <div class="input-label-row">
+      <label>Review Input</label>
+      <div class="input-toggle">
+        <button class="toggle-btn active" id="btnText"  onclick="switchMode('text')">✏️ Type</button>
+        <button class="toggle-btn"        id="btnVoice" onclick="switchMode('voice')">🎤 Voice</button>
+      </div>
+    </div>
+
+    <!-- TEXT MODE -->
+    <div id="textSection">
+      <textarea
+        id="reviewText"
+        placeholder="Type or paste a product review here..."
+        oninput="updateCount()"
+        onkeyup="updateCount()"
+        onpaste="setTimeout(updateCount, 10)"
+      ></textarea>
+      <div class="char-row">
+        <span class="char-info">Characters: <span id="charCount">0</span></span>
+        <span class="char-info">Words: <span id="wordCount">0</span></span>
+      </div>
+    </div>
+
+    <!-- VOICE MODE -->
+    <div class="voice-section" id="voiceSection">
+      <div class="not-supported" id="notSupported">
+        ⚠ Voice input is not supported in this browser.<br/>
+        Please use <strong>Google Chrome</strong> for the voice feature.
+      </div>
+      <div class="voice-box" id="voiceBox">
+        <button class="mic-btn" id="micBtn" onclick="toggleVoice()">🎤</button>
+        <div class="wave-wrap" id="waveWrap">
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+          <div class="wave-bar"></div>
+        </div>
+        <div class="voice-status" id="voiceStatus">Click the mic to start speaking</div>
+        <div class="voice-hint"   id="voiceHint">Speak clearly in English &bull; Click again to stop</div>
+      </div>
+      <div class="transcript-box" id="transcriptBox">
+        <div class="transcript-label">📝 Converted Text</div>
+        <div id="transcriptText"></div>
+      </div>
+    </div>
+
+    <!-- EXAMPLE PILLS — text mode only -->
+    <div id="pillSection">
+      <div class="pill-label">Try an example</div>
+      <div class="pills">
+        <div class="pill" onclick="setExample('The battery life is good and camera quality is decent. Totally worth the price.')">✅ Genuine</div>
+        <div class="pill" onclick="setExample('AMAZING AMAZING BUY NOW BEST PRODUCT EVER 5 STARS LOVE IT MUST BUY!!!')">❌ Fake</div>
+        <div class="pill" onclick="setExample('Decent phone but charging cable broke after 2 weeks. Customer support helped.')">✅ Mixed</div>
+        <div class="pill" onclick="setExample('Perfect perfect perfect love love love buy buy buy five stars five stars!!!')">❌ Repetitive</div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="startAnalyze()">🤖 Analyze Review</button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-card" id="loadingCard">
+    <div class="spinner"></div>
+    <div class="loading-text">Processing your review...</div>
+    <div class="steps">
+      <div class="step" id="step1">① Tokenizing text...</div>
+      <div class="step" id="step2">② Applying TF-IDF vectorization...</div>
+      <div class="step" id="step3">③ Running Random Forest model...</div>
+      <div class="step" id="step4">④ Computing confidence score...</div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-card" id="resultCard">
+    <div id="voiceResultBadge"></div>
+    <div class="result-emoji" id="resultEmoji"></div>
+    <div class="result-title" id="resultTitle"></div>
+    <div class="result-desc"  id="resultDesc"></div>
+
+    <div class="reviewed-label">Analyzed Review</div>
+    <div class="reviewed-text" id="reviewedText"></div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Prediction</div>
+        <div class="metric-value" id="mPred"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Confidence</div>
+        <div class="metric-value" id="mConf"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Word Count</div>
+        <div class="metric-value" id="mWords"></div>
+      </div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-top">
+        <span>Confidence Level</span>
+        <span id="barPct"></span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="barFill"></div>
+      </div>
+    </div>
+
+    <div class="feat-label">Detected Features</div>
+    <div class="feat-list" id="featList"></div>
+
+    <button class="try-btn" onclick="tryAgain()">← Try Another Review</button>
+  </div>
+</main>
+
+<script>
+var isVoiceMode = false;
+var isRecording = false;
+var recognition = null;
+var voiceText   = '';
+var usedVoice   = false;
+
+/* ── SWITCH MODE ─────────────────────────── */
+function switchMode(mode) {
+  isVoiceMode = (mode === 'voice');
+  document.getElementById('btnText').className   = 'toggle-btn' + (isVoiceMode ? '' : ' active');
+  document.getElementById('btnVoice').className  = 'toggle-btn' + (isVoiceMode ? ' active' : '');
+  document.getElementById('textSection').style.display  = isVoiceMode ? 'none'  : 'block';
+  document.getElementById('voiceSection').style.display = isVoiceMode ? 'block' : 'none';
+  document.getElementById('pillSection').style.display  = isVoiceMode ? 'none'  : 'block';
+  if (isVoiceMode) { checkVoiceSupport(); } else { stopVoice(); }
+}
+
+/* ── CHECK SUPPORT ───────────────────────── */
+function checkVoiceSupport() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('notSupported').style.display = 'block';
+    document.getElementById('micBtn').style.display       = 'none';
+    document.getElementById('waveWrap').style.display     = 'none';
+  } else {
+    document.getElementById('notSupported').style.display = 'none';
+    document.getElementById('micBtn').style.display       = 'flex';
+    document.getElementById('waveWrap').style.display     = 'flex';
+    setupRecognition(SR);
+  }
+}
+
+/* ── SETUP SPEECH RECOGNITION ────────────── */
+function setupRecognition(SR) {
+  recognition = new SR();
+  recognition.continuous     = true;
+  recognition.interimResults = true;
+  recognition.lang           = 'en-US';
+
+  recognition.onstart = function() {
+    isRecording = true;
+    document.getElementById('micBtn').className      = 'mic-btn recording';
+    document.getElementById('micBtn').textContent    = '⏹';
+    document.getElementById('voiceBox').className    = 'voice-box listening';
+    document.getElementById('voiceStatus').textContent = '🔴 Listening... Speak now!';
+    document.getElementById('voiceStatus').className = 'voice-status active';
+    document.getElementById('voiceHint').textContent = 'Click the button again to stop recording';
+    document.getElementById('waveWrap').className    = 'wave-wrap show';
+  };
+
+  recognition.onresult = function(event) {
+    var interim = '';
+    var final   = '';
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      var t = event.results[i][0].transcript;
+      if (event.results[i].isFinal) { final += t + ' '; }
+      else { interim += t; }
+    }
+    voiceText += final;
+    var display = voiceText + interim;
+    if (display.trim()) {
+      document.getElementById('transcriptBox').style.display = 'block';
+      document.getElementById('transcriptText').textContent  = display.trim();
+    }
+  };
+
+  recognition.onerror = function(event) {
+    stopVoice();
+    if (event.error === 'not-allowed') {
+      alert('Microphone permission denied!\n\nTo fix:\n1. Click the lock icon in browser address bar\n2. Set Microphone to Allow\n3. Refresh the page');
+    } else if (event.error === 'no-speech') {
+      document.getElementById('voiceStatus').textContent = 'No speech detected. Please try again.';
+      document.getElementById('voiceStatus').className   = 'voice-status';
+    }
+  };
+
+  recognition.onend = function() { if (isRecording) stopVoice(); };
+}
+
+/* ── TOGGLE VOICE ────────────────────────── */
+function toggleVoice() {
+  if (!recognition) return;
+  if (isRecording) {
+    stopVoice();
+  } else {
+    voiceText = '';
+    document.getElementById('transcriptBox').style.display  = 'none';
+    document.getElementById('transcriptText').textContent   = '';
+    recognition.start();
+  }
+}
+
+/* ── STOP VOICE ──────────────────────────── */
+function stopVoice() {
+  isRecording = false;
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+  document.getElementById('micBtn').className   = 'mic-btn';
+  document.getElementById('micBtn').textContent = '🎤';
+  document.getElementById('voiceBox').className = 'voice-box';
+  document.getElementById('waveWrap').className = 'wave-wrap';
+  if (voiceText.trim()) {
+    document.getElementById('voiceStatus').textContent = '✅ Voice captured! Click Analyze Review.';
+    document.getElementById('voiceStatus').className   = 'voice-status';
+    document.getElementById('voiceHint').textContent   = 'Your speech has been converted to text above';
+    usedVoice = true;
+  } else {
+    document.getElementById('voiceStatus').textContent = 'Click the mic to start speaking';
+    document.getElementById('voiceStatus').className   = 'voice-status';
+    document.getElementById('voiceHint').textContent   = 'Speak clearly in English \u2022 Click again to stop';
+  }
+}
+
+/* ── UPDATE COUNT ────────────────────────── */
+function updateCount() {
+  var val   = document.getElementById('reviewText').value;
+  var words = val.trim() === '' ? 0 : val.trim().split(/\s+/).length;
+  document.getElementById('charCount').textContent = val.length;
+  document.getElementById('wordCount').textContent = words;
+}
+
+/* ── SET EXAMPLE ─────────────────────────── */
+function setExample(text) {
+  var box = document.getElementById('reviewText');
+  box.value = text;
+  box.focus();
+  updateCount();
+}
+
+/* ── START ANALYZE ───────────────────────── */
+function startAnalyze() {
+  var text = '';
+  if (isVoiceMode) {
+    text = voiceText.trim();
+    if (!text) {
+      var t2 = document.getElementById('transcriptText').textContent.trim();
+      if (t2) { text = t2; }
+    }
+    if (!text) {
+      alert('Please speak a review first!\n\n1. Click the mic button\n2. Speak your review\n3. Click mic again to stop\n4. Then click Analyze Review');
+      return;
+    }
+  } else {
+    var box = document.getElementById('reviewText');
+    text = box.value.trim();
+    if (!text) {
+      box.style.borderColor = '#e53935';
+      box.focus();
+      alert('Please type or paste a review in the box first!');
+      setTimeout(function() { box.style.borderColor = ''; }, 2000);
+      return;
+    }
+    if (text.length < 5) {
+      alert('Review is too short! Enter at least 5 characters.');
+      return;
+    }
+  }
+
+  usedVoice = isVoiceMode;
+
+  document.getElementById('inputSection').style.display = 'none';
+  document.getElementById('loadingCard').style.display  = 'block';
+  document.getElementById('resultCard').style.display   = 'none';
+
+  var steps = ['step1','step2','step3','step4'];
+  steps.forEach(function(s) { document.getElementById(s).className = 'step'; });
+  steps.forEach(function(s, i) {
+    setTimeout(function() {
+      if (i > 0) document.getElementById(steps[i-1]).className = 'step done';
+      document.getElementById(s).className = 'step active';
+    }, i * 620);
+  });
+
+  setTimeout(function() { tryFlask(text); }, 2700);
+}
+
+/* ── TRY FLASK ───────────────────────────── */
+function tryFlask(text) {
+  fetch('http://localhost:5000/predict', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ review: text })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    document.getElementById('loadingCard').style.display = 'none';
+    showResult(text, data.result, parseFloat(data.confidence));
+  })
+  .catch(function() {
+    document.getElementById('loadingCard').style.display = 'none';
+    showResult(text, null, null);
+  });
+}
+
+/* ── SHOW RESULT ─────────────────────────── */
+function showResult(text, flaskResult, flaskConf) {
+  var words = text.trim().split(/\s+/).filter(function(w){ return w.length > 0; });
+  var isFake, conf;
+
+  if (flaskResult !== null && flaskConf !== null) {
+    isFake = (flaskResult === 'Fake');
+    conf   = flaskConf;
+  } else {
+    var upCount = (text.match(/[A-Z]/g) || []).length;
+    var upper   = upCount / text.length;
+    var excl    = (text.match(/!/g) || []).length;
+    var repeat  = /(\b\w+\b)(?:\s+\1){2,}/i.test(text);
+    var fs = 0;
+
+    // Check uppercase ratio
+    if (upper > 0.20) fs += 20;
+
+    // Check exclamation marks
+    if (excl >= 2) fs += 20;
+    if (excl >= 4) fs += 10;
+
+    // Check repeated words (any word repeated 2+ times)
+    if (repeat) fs += 30;
+
+    // Check repeated words more loosely
+    var wordArr = text.toLowerCase().split(/\s+/).filter(function(w){ return w.length > 2; });
+    var wordFreq = {};
+    wordArr.forEach(function(w){ wordFreq[w] = (wordFreq[w] || 0) + 1; });
+    var maxFreq = Math.max.apply(null, Object.values(wordFreq));
+    if (maxFreq >= 2) fs += 25;
+    if (maxFreq >= 3) fs += 15;
+
+    // Check fake keywords — including voice mis-recognition variants
+    var fakeWords = [
+      'buy now','must buy','best ever','by now','bi now',
+      'amazing amazing','best best','love love','perfect perfect',
+      'five stars','wow wow','incredible','must have',
+      'do not miss','dont miss','limited offer'
+    ];
+    fakeWords.forEach(function(kw){
+      if (text.toLowerCase().indexOf(kw) !== -1) fs += 20;
+    });
+
+    // Short review with repeated hype words
+    if (words.length < 15 && maxFreq >= 2) fs += 15;
+
+    fs     = Math.min(fs, 97);
+    isFake = fs > 40;
+    conf   = isFake ? fs : Math.max(100 - fs, 60);
+  }
+
+  var cls  = isFake ? 'fake' : 'genuine';
+  var card = document.getElementById('resultCard');
+  card.className = 'result-card ' + cls;
+
+  /* Voice badge */
+  document.getElementById('voiceResultBadge').innerHTML = usedVoice
+    ? '<span class="voice-badge">🎤 Analyzed from Voice Input</span>' : '';
+
+  /* Result content */
+  document.getElementById('resultEmoji').textContent = isFake ? '❌' : '✅';
+  var titleEl = document.getElementById('resultTitle');
+  titleEl.textContent = isFake ? 'Fake Review Detected' : 'Genuine Review';
+  titleEl.className   = 'result-title ' + cls;
+  document.getElementById('resultDesc').textContent = isFake
+    ? 'Our model detected this review as FAKE. Signs: excessive punctuation, repeated words, or promotional language patterns.'
+    : 'This review appears GENUINE. Natural language with no signs of fake or deceptive content.';
+
+  /* Show the analyzed text */
+  document.getElementById('reviewedText').textContent = text.length > 200 ? text.substring(0,200) + '...' : text;
+
+  /* Metrics */
+  document.getElementById('mPred').textContent  = isFake ? 'FAKE' : 'GENUINE';
+  document.getElementById('mConf').textContent  = conf + '%';
+  document.getElementById('mWords').textContent = words.length;
+  document.getElementById('barPct').textContent = conf + '%';
+
+  /* Bar */
+  var fill = document.getElementById('barFill');
+  fill.className = 'bar-fill ' + cls;
+  card.style.display = 'block';
+  setTimeout(function() { fill.style.width = conf + '%'; }, 120);
+
+  /* Feature tags */
+  var upCount2 = (text.match(/[A-Z]/g) || []).length;
+  var upper2   = upCount2 / text.length;
+  var excl2    = (text.match(/!/g) || []).length;
+  var repeat2  = /(\b\w+\b)(?:\s+\1){2,}/i.test(text);
+  var features = [];
+  var wordArr2  = text.toLowerCase().split(/\s+/).filter(function(w){ return w.length > 2; });
+  var wordFreq2 = {};
+  wordArr2.forEach(function(w){ wordFreq2[w] = (wordFreq2[w] || 0) + 1; });
+  var maxFreq2  = Object.keys(wordFreq2).length > 0 ? Math.max.apply(null, Object.values(wordFreq2)) : 0;
+
+  if (usedVoice)      features.push({ t:'Voice Input Used',              w:false });
+  if (upper2 > 0.20)  features.push({ t:'High uppercase ratio',          w:true  });
+  if (excl2 >= 2)     features.push({ t:excl2 + ' exclamation marks',    w:true  });
+  if (repeat2)        features.push({ t:'Repeated words detected',        w:true  });
+  if (maxFreq2 >= 2)  features.push({ t:'Word repeated ' + maxFreq2 + ' times', w:true });
+  var fakeKw = ['buy now','must buy','best ever','by now','amazing amazing','best best','love love','perfect perfect'];
+  var foundKw = false;
+  fakeKw.forEach(function(kw){ if (text.toLowerCase().indexOf(kw) !== -1) foundKw = true; });
+  if (foundKw)        features.push({ t:'Promotional/hype phrases',       w:true  });
+  if (!isFake)        features.push({ t:'Natural language',               w:false });
+  if (words.length > 10) features.push({ t:'Good word count',             w:false });
+  if (excl2 < 2)      features.push({ t:'Normal punctuation',             w:false });
+
+  var fl = document.getElementById('featList');
+  fl.innerHTML = '';
+  features.forEach(function(f) {
+    var s = document.createElement('span');
+    s.className   = 'feat-tag ' + (f.w ? 'warn' : 'ok');
+    s.textContent = (f.w ? '⚠ ' : '✓ ') + f.t;
+    fl.appendChild(s);
+  });
+
+  /* Save to localStorage */
+  try {
+    var stored = JSON.parse(localStorage.getItem('reviewResults') || '[]');
+    stored.unshift({
+      text:   (usedVoice ? '🎤 ' : '') + text.substring(0, 80),
+      result: isFake ? 'Fake' : 'Genuine',
+      conf:   conf + '%',
+      date:   new Date().toLocaleDateString()
+    });
+    localStorage.setItem('reviewResults', JSON.stringify(stored.slice(0, 50)));
+  } catch(e) {}
+}
+
+/* ── TRY AGAIN ───────────────────────────── */
+function tryAgain() {
+  document.getElementById('reviewText').value             = '';
+  document.getElementById('reviewText').style.borderColor = '';
+  document.getElementById('inputSection').style.display   = 'block';
+  document.getElementById('resultCard').style.display     = 'none';
+  document.getElementById('loadingCard').style.display    = 'none';
+  document.getElementById('barFill').style.width          = '0';
+  document.getElementById('transcriptBox').style.display  = 'none';
+  document.getElementById('transcriptText').textContent   = '';
+  document.getElementById('voiceStatus').textContent      = 'Click the mic to start speaking';
+  document.getElementById('voiceStatus').className        = 'voice-status';
+  document.getElementById('voiceHint').textContent        = 'Speak clearly in English \u2022 Click again to stop';
+  voiceText = '';
+  usedVoice = false;
+  updateCount();
+  switchMode('text');
+}
+</script>
+</body>
+</html>

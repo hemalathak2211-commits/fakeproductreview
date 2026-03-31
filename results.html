@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Results — Fake Review Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #eaf4fb; --surface: #ffffff; --border: #c8e2f5;
+    --accent: #2196f3; --accent-dark: #1565c0; --accent-light: #e3f2fd;
+    --text: #1a2a3a; --muted: #6e8fa8;
+    --green: #43a047; --green-light: #e8f5e9; --green-border: #c8e6c9;
+    --red: #e53935; --red-light: #fdecea; --red-border: #ffcdd2;
+    --purple: #7c4dff; --purple-light: #ede7f6;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Poppins', sans-serif; min-height: 100vh;
+  }
+  body::before {
+    content: ''; position: fixed; width: 500px; height: 500px;
+    background: radial-gradient(circle, #bbdefb 0%, transparent 70%);
+    top: -150px; left: -150px; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: ''; position: fixed; width: 400px; height: 400px;
+    background: radial-gradient(circle, #e3f2fd 0%, transparent 70%);
+    bottom: -100px; right: -100px; border-radius: 50%; pointer-events: none; z-index: 0;
+  }
+
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 32px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(33,150,243,0.07);
+  }
+  .nav-left { display: flex; align-items: center; gap: 10px; }
+  .nav-logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, #2196f3, #1565c0);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+  }
+  .nav-title { font-size: 17px; font-weight: 800; }
+  .nav-title span { color: var(--accent); }
+  .back-btn {
+    background: var(--accent-light); border: 1px solid var(--border);
+    color: var(--accent); padding: 7px 16px; border-radius: 8px;
+    font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .back-btn:hover { background: #d0eafb; }
+
+  main { max-width: 1000px; margin: 0 auto; padding: 32px 24px 48px; position: relative; z-index: 1; }
+
+  .page-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+  .page-title span { color: var(--purple); }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* SUMMARY */
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 22px; }
+  .sum-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 16px;
+    box-shadow: 0 2px 10px rgba(33,150,243,0.06);
+  }
+  .sum-label { font-size: 10px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+  .sum-val { font-size: 26px; font-weight: 800; }
+
+  /* FILTERS */
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-btn {
+    background: var(--surface); border: 1.5px solid var(--border);
+    color: var(--muted); padding: 7px 16px; border-radius: 8px;
+    font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .filter-btn:hover  { background: var(--accent-light); }
+
+  /* TABLE */
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(33,150,243,0.06);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 12px 20px;
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.7px;
+    background: var(--accent-light); border-bottom: 1px solid var(--border);
+  }
+  td { padding: 13px 20px; font-size: 13px; border-bottom: 1px solid #f0f7ff; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f7fbff; }
+
+  .review-text { max-width: 340px; font-size: 12px; color: var(--muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; display: inline-block; }
+  .badge-genuine { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
+  .badge-fake    { background: var(--red-light);   color: var(--red);   border: 1px solid var(--red-border);   }
+  .conf-val { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .date-val { font-size: 11px; color: #b0c8da; }
+  .num-val  { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 50px 20px; }
+  .empty-icon { font-size: 44px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; color: var(--muted); margin-bottom: 18px; }
+  .goto-btn {
+    background: linear-gradient(135deg, #2196f3, #1565c0);
+    color: #fff; border: none; padding: 11px 24px; border-radius: 8px;
+    font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-left">
+    <div class="nav-logo-icon">🛡</div>
+    <div class="nav-title">Fake Review <span>Detection</span></div>
+  </div>
+  <button class="back-btn" onclick="window.location.href='dashboard.html'">← Dashboard</button>
+</nav>
+
+<main>
+  <div class="page-title">📊 All <span>Results</span></div>
+  <p class="page-sub">Complete history of all analyzed reviews and their predictions.</p>
+
+  <div class="summary">
+    <div class="sum-card">
+      <div class="sum-label">Total Analyzed</div>
+      <div class="sum-val" style="color:var(--accent)" id="totalCount">0</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Genuine Reviews</div>
+      <div class="sum-val" style="color:var(--green)" id="genuineCount">0</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Fake Reviews</div>
+      <div class="sum-val" style="color:var(--red)" id="fakeCount">0</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="filter('all',this)">All</button>
+    <button class="filter-btn" onclick="filter('Genuine',this)">✅ Genuine</button>
+    <button class="filter-btn" onclick="filter('Fake',this)">❌ Fake</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Review Text</th>
+          <th>Prediction</th>
+          <th>Confidence</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-text">No reviews analyzed yet. Go check a review first!</div>
+      <button class="goto-btn" onclick="window.location.href='check_review.html'">Check a Review →</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  const demo = [
+    { text:"Amazing product! Totally worth every penny, loved it.",            result:"Genuine", conf:"91%", date:"19 Mar 2026" },
+    { text:"BEST PRODUCT EVER BUY NOW BUY NOW AMAZING!!!",                    result:"Fake",    conf:"88%", date:"19 Mar 2026" },
+    { text:"Decent quality, delivery was on time. Would buy again.",           result:"Genuine", conf:"85%", date:"18 Mar 2026" },
+    { text:"Perfect perfect perfect 5 stars stars stars love love love",       result:"Fake",    conf:"93%", date:"18 Mar 2026" },
+    { text:"Battery life is good but camera could be better.",                 result:"Genuine", conf:"79%", date:"17 Mar 2026" },
+    { text:"Worst purchase ever. Broke in 2 days. No support from seller.",    result:"Genuine", conf:"82%", date:"16 Mar 2026" },
+    { text:"LOVE LOVE LOVE BEST BEST BEST BUY BUY BUY!!!!",                   result:"Fake",    conf:"96%", date:"15 Mar 2026" },
+  ];
+
+  const userReviews = JSON.parse(localStorage.getItem('reviewResults') || '[]');
+  let allData = [...userReviews.map(r => ({...r, date: r.date||'Today'})), ...demo];
+  let filtered = [...allData];
+
+  function updateCounts() {
+    document.getElementById('totalCount').textContent   = allData.length;
+    document.getElementById('genuineCount').textContent = allData.filter(r => r.result==='Genuine').length;
+    document.getElementById('fakeCount').textContent    = allData.filter(r => r.result==='Fake').length;
+  }
+
+  function renderTable(data) {
+    const tbody = document.getElementById('resultsBody');
+    const empty = document.getElementById('emptyState');
+    tbody.innerHTML = '';
+    if (!data.length) { empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    data.forEach((r, i) => {
+      const g = r.result === 'Genuine';
+      tbody.innerHTML += `<tr>
+        <td class="num-val">${i+1}</td>
+        <td><div class="review-text">${r.text}</div></td>
+        <td><span class="badge ${g ? 'badge-genuine':'badge-fake'}">${g?'✅':'❌'} ${r.result}</span></td>
+        <td><span class="conf-val">${r.conf}</span></td>
+        <td><span class="date-val">${r.date}</span></td>
+      </tr>`;
+    });
+  }
+
+  function filter(type, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filtered = type === 'all' ? [...allData] : allData.filter(r => r.result === type);
+    renderTable(filtered);
+  }
+
+  updateCounts();
+  renderTable(allData);
+</script>
+</body>
+</html>
